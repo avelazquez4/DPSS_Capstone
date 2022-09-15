@@ -1,0 +1,500 @@
+---
+title: "DPSS - Education Policy Capstone Research Project"
+author: "Anne Velazquez"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+## Introduction
+The purpose of this analysis is to estimate the impact of the Safe Passage Program, a public policy designed and introduced by the the City of Chicago (see [here](https://www.cps.edu/services-and-supports/student-safety-and-security/safe-passage-program/) for more details on the program). The main purpose of the program is "to provide a positive, trusted adult presence for students as they travel to and from school.”
+
+
+
+*First, clear the work space and load the necessary packages.*
+
+```{r setup, message=FALSE, warning=FALSE}
+rm(list = ls())
+library(readxl)
+library(httr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(haven)
+library(readxl)
+library(plm)
+library(sf)
+library(leaflet)
+library(lmtest)
+#install.packages("leaflet.providers")
+library(leaflet.providers)
+library(stargazer)
+#tinytex::install_tinytex()
+
+
+```
+
+
+*Read in all the data files for the analysis.*
+
+1. "Attnd": Attendance data for Chicago public schools
+
+2. "control": List of Chicago schools without the Safe Passage Program ang geographic information
+
+3. "treatment: List of Chicago schools with the Safe Passage Program, when it was implemented and geographic information
+
+4. "crimes": Information on Chicago crimes within 500 yards of schools including crime type, location, and date of crime.
+
+5. "schools_v_crime": Chicago crimes that happened within 500 yards of school and their distance from the relevant school(s)
+
+
+
+```{r load_data, message=FALSE}
+## Data 1: school attendance data
+attnd <- read_xlsx("metrics_attendance_2021.xlsx", sheet = "Overtime")
+
+##can also read this file in directly from the web
+# url <- "https://www.cps.edu/globalassets/cps-pages/about-cps/district-data/metrics/metrics_attendance_2021.xlsx"
+# GET(url, write_disk(tf <- tempfile(fileext = ".xlsx")))
+# attnd2 <- read_excel(tf, sheet = "Overtime")
+# str(df)
+
+## Data sets 2 and 3: Control schools vs treatments schools (i.e. ones with Safe passage program)
+control <- read.csv("control.csv")
+treated <- read.csv("treated.csv")
+
+## Data 4: Crimes within 500 yards of schools
+crimes <- read.csv("crime-data.csv")
+
+## Data 5: Crimes that happened within 500 yards of school and distance from school
+schools_v_crime <- read.csv("school-vs-crime-distances.csv")
+
+
+```
+
+
+## Data Cleaning and Exploration
+
+
+### Question 1
+
+*Format the school attendance data to use in the analysis.*
+
+```{r Q1, message=FALSE, warning=FALSE}
+
+#View the current school attendance data to understand its contents and format
+head(attnd)
+
+## Part B: Reformat the data to be long rather than wide, filter to only years 2013-2018, and filter so we are only looking at overall school attendance rates rather than each individual grade
+attnd_adj <- attnd %>%
+  gather(key = "Year", value = "attnd_rate", 6:23)%>%
+  mutate(Year = as.numeric(Year)) %>%
+  filter(Year %in% 2013:2018)%>%
+  filter(Group == "All (Excludes Pre-K)")
+
+#Review the adjusted data
+str(attnd_adj)
+
+```
+
+
+
+### Question 2
+
+#### Part A
+
+*Combine the school attendance data with the 'control' and 'treated' data detailing which schools implemented the Safe Passage Program and where these schools are located.*
+
+```{r Q2a, message = FALSE, warning = FALSE}
+
+## Bind the two control and treated datasets together to create a complete list of Chicago area schools and review the data
+schools <- rbind(control, treated)
+str(schools)
+
+## Prepare the school attendance data to be merged with the schools dataset
+
+## make column name 'School ID' in the attendance data 'SCHOOLID' instead
+colnames(attnd_adj)
+colnames(attnd_adj)[1] <- "SCHOOLID"
+colnames(attnd_adj)
+
+## See how many unique school IDs are in each dataset
+#length(unique(attnd_adj$SCHOOLID))
+#length(unique(schools$SCHOOLID)) #the school attendance dataset has more schools
+
+## Join the two datasets 
+## keep only school IDs from the 'schools' dataset which contains the treatment and control schools and their latitude and longitude information
+school_data <- left_join(schools, attnd_adj, by = "SCHOOLID")
+glimpse(school_data)
+
+#confirm that this new data has the same number of School IDs as the schools dataset
+#length(unique(school_data$SCHOOLID)) == length(unique(schools$SCHOOLID))
+
+## Add a column to this dataframe to identify whether a school was a "treated" (had the safe passage program) or a "control" school
+school_data <- school_data  %>%
+  mutate(treatment = as.factor(ifelse(is.na(policy_implementation), "control", "treated")))
+
+## Check the number of treated vs. control schools for each year in the dataset
+school_data %>%
+  group_by(Year, treatment) %>%
+  summarize(schools = n())
+
+
+```
+
+
+#### Part B
+
+*Create a map displaying the treated and control schools, with each group of schools in a different color.*
+
+```{r Q2b, message=FALSE, warning=FALSE}
+
+## Set up the color scheme to identify treated vs. control schools
+color_string <- c("gray", "yellow")
+pal <- colorFactor(color_string, school_data$treatment)
+
+## Map the treated vs. the control schools, and filter to just one year of data so there is only one point on the map per school
+school_data %>%
+  filter(Year == 2015) %>%
+leaflet() %>%
+  addProviderTiles("CartoDB.DarkMatter") %>% 
+  addCircles(
+    lat = ~ Lat, 
+    lng = ~ Long, 
+    color = ~ pal(treatment), 
+    opacity = 0.9, 
+  ) %>%
+  addLegend("topright", colors = color_string, values = ~treatment,
+            labels = c("w/o Safe Passage Program (control)", "w/ Safe Passage Program (treated)"),
+    title = "School Type") 
+
+
+```
+
+
+From the map of the treated schools compared to control schools, the treated schools do not appear to be evenly distributed throughout the Chicago area. Most schools with the safe passage program (treated) are in the southern part of Chicago. There is a higher concentration of treated schools near the South Side, New City, and Englewood areas specifically. Treated schools generally appear more concentrated near the center of the city and are less prevalent towards the edges of the city.
+
+
+### Question 3
+
+#### Part A
+
+*Load and organize the Chicago crime data for the analysis.*
+
+```{r Q3a, message=FALSE, warning = FALSE}
+## Load the ‘crime.csv’ and the ‘school-crime-distance.csv’ datasets into your R current session.
+
+#crimes <- read.csv("crime-data.csv")
+#schools_v_crime <- read.csv("school-vs-crime-distances.csv")
+
+## Review the data frames
+str(crimes)
+str(schools_v_crime)
+
+## Join the two crime datasets together so, at the end, you have a dataset containing the crime that occurred in Chicago between 2013 and 2018 and their distance from Chicago Public Schools.
+
+## Prep the datasets to join them
+#colnames(crimes)
+#colnames(schools_v_crime)
+colnames(crimes)[1] <- "CRIME_ID"
+
+crime_join <- full_join(crimes, schools_v_crime, by = "CRIME_ID")
+str(crime_join)
+
+## Convert Date column from character to date format
+#crime_join$Date[1]
+#mdy_hms(crime_join$Date[1])
+crime_join$Date <- mdy_hms(crime_join$Date)
+
+## Add Year column to crime data
+crime_join <- crime_join %>%
+  mutate(Year = year(Date))
+
+#Review new data
+str(crime_join)
+
+```
+
+
+
+#### Part B
+
+*Create a map that shows all the crimes that took place within a 50 yard distance from schools to see if crimes are concentrated in any particular area of the city.*
+
+
+Based on the following maps, crimes in Chicago from 2013-2018 within 50 yards of schools appear more highly concentrated near the center of the city.
+
+
+```{r Q3b, message = FALSE, warning=FALSE}
+
+#Map of all crimes from 2013-2018 within 50 yards of schools
+crime_join %>%
+  filter(distance <= 50) %>%
+  leaflet() %>%
+  addProviderTiles("CartoDB.DarkMatter") %>%
+  addCircles(
+    lat = ~ Latitude, 
+    lng = ~ Longitude,
+    opacity = 0.2, 
+    color = "red"
+  )
+
+
+#Map of all crimes from 2013-2018 within 50 yards of schools
+#Cluster version
+crime_join %>%
+  filter(distance <= 50) %>%
+  leaflet() %>%
+  addProviderTiles("CartoDB.DarkMatter") %>%
+  addMarkers(
+    clusterOptions = markerClusterOptions()
+  )
+
+```
+
+
+
+## Analysis and Results
+
+### Question 4
+
+
+*In order to use fixed effects regression analysis to evaluate the impact of the Safe Passage Program on crime near schools, first we must confirm if the ‘parallel trends’ assumption holds. In other words, we will confirm if crime rates near schools with the Safe Passage Program were trending similarly to those without the program. If this is true, we can use fixed effects regression to analyze the impact of the program.*
+
+
+*First, create a new data frame which should contain for each ‘SCHOOLID’ the total count of crimes that took place within a 50 yard distance from the school for each year of the dataset from 2013 to 2018.*
+
+```{r Q4a, message=FALSE, warning=FALSE}
+
+df_crime_scl <- crime_join %>%
+  mutate(Year = year(Date)) %>%
+  group_by(SCHOOLID, Year) %>%
+  summarize(crime_count_50yd = sum(distance <= 50),
+            crime_count_200yd = sum(distance <= 200))
+
+head(df_crime_scl, 10)
+
+# #check how many rows of data there should be given schools and years
+# length(unique(crime_join$Year))*length(unique(crime_join$SCHOOLID))
+# nrow(df_crime_scl)
+# ##The dataset accounts for all schools and years
+
+```
+
+
+
+*Now join the summarized crime data with the school data. Make sure that before joining them, the school_data only contains the following columns: (i) one for the schoolid; (ii) one for latitude; (iii) one for longitude; (iv) one indicating if the schools is part of the safe passage or not; (v) one indicating the year the policy was implemented; (vi) the attendance rate percentage for that SchoolID.*
+
+
+
+```{r Q4b, message=FALSE, warning=FALSE}
+
+## Check how many unique schools are in the crime data
+# length(unique(crime_join$SCHOOLID))
+# 
+# #confirmed the crime dataset has the same # of school IDs as school_data 
+# length(unique(crime_join$SCHOOLID)) == length(unique(school_data$SCHOOLID))
+
+
+#Join the two data frames using SchoolID and Year so we have data that shows each school for years 2013-2018, whether they were treated, when they were treated, and the attendance rate and crime counts for each year
+
+# glimpse(school_data) #check names of columns needed
+
+# Join crimes summary data with school data
+# only need columns SCHOOLID, lat, long, treatment, policy_implementation, Year, attnd_rate
+# use right join to only keep the School IDs in the df_crime_scl dataset
+
+df_sum_scl_crime <- school_data %>%
+  select(SCHOOLID, treatment, policy_implementation, Year, attnd_rate, Lat, Long) %>%
+  right_join(., df_crime_scl, by = c('SCHOOLID', 'Year')) %>% 
+  arrange(SCHOOLID)
+
+str(df_sum_scl_crime)
+
+```
+
+
+
+*Use this data frame to create a plot that visually verifies the parallel trends assumption necessary for fixed effects regression.*
+
+
+```{r Q4c1, message=FALSE, warning=FALSE}
+
+#levels(df_sum_scl_crime$treatment) #check levels of treatment variable
+
+#Graph of average crimes within 50 yards
+df_sum_scl_crime %>%
+  group_by(treatment, Year) %>%
+  summarise(Avg_crimes = mean(crime_count_50yd)) %>%
+  ggplot()+
+  geom_line(aes(
+    x = Year, 
+    y = Avg_crimes, 
+    color = treatment))+
+  geom_vline(xintercept = 2015, linetype = "dashed") +
+  guides(col = guide_legend(reverse = TRUE)) +
+  scale_color_discrete(
+    name = "Safe Passage Program Indicator", 
+    labels = c("Schools w/o Program (control)", "Schools w/ Program (treated)")) +
+  labs(
+    title = "Crimes within 50 Yards of Chicago Schools from 2013-2018", 
+    x = "Year", 
+    y = "Average Crime Count within 50 Yards"
+  )
+
+
+```
+
+
+
+The graph shows that, on average, all schools had decreasing rates of crime within 50 yards prior to 2015. After 2015, schools with the Safe Passage Program continued to see nearby crime decrease on average through 2018, while schools without the program saw nearby crimes increase slightly and hold relatively flat through 2018. In short, nearby crime rates were trending similarly at all schools before the the Safe Passage Program was implemented in 2015. 
+
+
+If instead we look at crimes within 200 yards of schools, the trend of crime rates prior to 2015 appears more parallel between schools with and without the Safe Passage Program.
+
+
+
+```{r Q4c2, message=FALSE, warning=FALSE}
+
+#Graph of average crimes within 200 yards
+df_sum_scl_crime %>%
+  group_by(treatment, Year) %>%
+  summarise(Avg_crimes = mean(crime_count_200yd)) %>%
+  ggplot()+
+  geom_line(aes(
+    x = Year, 
+    y = Avg_crimes, 
+    color = treatment))+
+  geom_vline(xintercept = 2015, linetype = "dashed") +
+  guides(col = guide_legend(reverse = TRUE)) +
+  scale_color_discrete(
+    name = "Safe Passage Program Indicator", 
+    labels = c("Schools w/o Program (control)", "Schools w/ Program (treated)")) +
+  labs(
+    title = "Crimes within 200 Yards of Chicago Schools from 2013-2018", 
+    x = "Year", 
+    y = "Average Crime Count within 200 Yards"
+  )
+
+
+```
+
+
+Now look at trends for school attendance rates. From the chart below, it does not look like the parallel trend assumption holds for school attendance rates. 
+
+
+
+```{r Q4c3, message=FALSE, warning=FALSE}
+#Graph of attendance rates
+head(df_sum_scl_crime)
+df_sum_scl_crime %>%
+  group_by(treatment, Year) %>%
+  summarise(Avg_attend = mean(attnd_rate)) %>%
+  ggplot()+
+  geom_line(aes(
+    x = Year, 
+    y = Avg_attend, 
+    color = treatment))+
+  geom_vline(xintercept = 2015, linetype = "dashed") +
+  guides(col = guide_legend(reverse = FALSE)) +
+  scale_color_discrete(
+    name = "Safe Passage Program Indicator", 
+    labels = c("Schools w/o Program (control)", "Schools w/ Program (treated)")) +
+  labs(
+    title = "Average Attendance Rates of Chicago Schools from 2013-2018", 
+    x = "Year", 
+    y = "Average Attendance Rates (%)"
+  )
+
+#try changing scale a bit, but still dont think this holds
+
+```
+
+
+
+### Question 5
+
+
+#### Part A
+
+*Run a fixed effects regression of total crime in the presence of the Safe Passage Policy. It should also include both ‘school’ fixed effects and ‘year’ fixed effects.*
+
+
+```{r Q5a, message=FALSE, warning=FALSE}
+
+#First, add a column to the data that indicates whether the safe passage program was in effect for the school in that year
+
+df_sum_scl_crime <- df_sum_scl_crime %>%
+  mutate(spp_active = factor(ifelse(Year >= 2015 & treatment == "treated", "Yes", "No"))) 
+
+# glimpse(df_sum_scl_crime) #view the aadded column
+#levels(df_sum_scl_crime$spp_active) #confirm levels of new variable
+
+#Now run a fixed effects regression model with year and schoool as fixed effects to see if the SPP had a significant impact on crimes near schools
+library(plm)
+
+# colnames(df_sum_scl_crime) #check names of variables
+# head(df_sum_scl_crime)
+
+#Model based on crimes within 50 yards of schools
+model_50_crime <- plm(crime_count_50yd ~ spp_active, data = df_sum_scl_crime, model = "within", effect = "twoways", index = c("SCHOOLID","Year"))
+
+#summary(model_50_crime)
+coef_model_50_crime <- coeftest(model_50_crime, vcov. = vcovHC, type = 'HC1')
+coef_model_50_crime
+
+
+#Model based on crimes within 200 yards
+model_200_crime <- plm(crime_count_200yd ~ spp_active, data = df_sum_scl_crime, model = "within", effect = "twoways", index = c("SCHOOLID","Year"))
+coef_model_200_crime <- coeftest(model_200_crime, vcov. = vcovHC, type = 'HC1')
+coef_model_200_crime
+
+#Summary results of both crime models
+stargazer(model_50_crime, model_200_crime, report=("vc*p"), title = "Results", header = FALSE, type = "text", p = c(coef_model_50_crime[4], coef_model_200_crime[4]), omit.stat=c("adj.rsq", "f", "rsq"))
+
+
+```
+
+
+
+The coefficient for the indicator variable is `r round(model_50_crime$coefficients[1], 3)`, which means that schools with the Safe Passage Program in effect have `r round(abs(model_50_crime$coefficients[1]), digits = 2)` fewer nearby crimes on average each year compared to schools that did not implement the Safe Passage Program. The p-value for this coefficient is significant at the .001 level. This means that the Safe Passage Program has a statistically significant relationship with the rate of crimes within 50 yards of schools. By including fixed effects for schools and each year in the model, we eliminate the risk of bias due to omitted factors that vary across schools and that vary over time.
+
+
+#### Part B
+
+*Run the same regression as in (a), but now run of school attendance on the presence of the Safe Passage Policy. *
+
+
+```{r Q5b, message=FALSE, warning=FALSE}
+
+model_attend <- plm(attnd_rate ~ spp_active, data = df_sum_scl_crime, model = "within", effect = "twoways", index = c("SCHOOLID","Year"))
+
+#summary(model_attend)
+
+coef_model_attend <- coeftest(model_attend, vcov. = vcovHC, type = 'HC1')
+coef_model_attend
+
+as.numeric(round(coef_model_attend[4], 5))
+
+
+#Summary results of all 3 models
+stargazer(model_50_crime, model_200_crime, model_attend, report=("vc*p"), title = "Results", header = FALSE, type = "text", p = c(coef_model_50_crime[4], coef_model_200_crime[4], coef_model_attend[4]), omit.stat=c("adj.rsq", "f", "rsq"))
+
+
+```
+
+
+The coefficient for the indicator variable is `r round(model_attend$coefficients[1], 3)`, which means that schools with the Safe Passage Program in effect had attendance rates that were `r round(abs(model_attend$coefficients[1]), digits = 2)` percentage points higher on average compared to schools that did not implement the Safe Passage Program. The p-value for this coefficient is significant at the .001 level. This means that the Safe Passage Program has a statistically significant relationship with school attendance rates. 
+
+
+
+
+
+
+
+
+
