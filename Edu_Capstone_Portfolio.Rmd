@@ -159,7 +159,7 @@ color_string <- c("gray", "yellow")
 pal <- colorFactor(color_string, school_data$treatment)
 
 ## Map the treated vs. the control schools, and filter to just one year of data so there is only one point on the map per school
-school_data %>%
+map_scl <- school_data %>%
   filter(Year == 2015) %>%
 leaflet() %>%
   addProviderTiles("CartoDB.DarkMatter") %>% 
@@ -172,6 +172,8 @@ leaflet() %>%
   addLegend("topright", colors = color_string, values = ~treatment,
             labels = c("w/o Safe Passage Program (control)", "w/ Safe Passage Program (treated)"),
     title = "School Type") 
+
+map_scl
 
 ```
 

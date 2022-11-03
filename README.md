@@ -50,7 +50,7 @@ statistics near these schools.
 Let’s look at where the schools with the Safe Passage Program are
 located compared to other schools in the Chicago area.
 
-INSERT LINK TO MAP PHOTO [Schools Map](SchoolsMap.png)
+![Schools Map](SchoolsMap.png)
 
 From the map of the treated schools compared to control schools, the
 treated schools do *not* appear to be evenly distributed throughout the
