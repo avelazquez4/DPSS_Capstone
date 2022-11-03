@@ -68,11 +68,7 @@ Now lets look at the Chicago crime data. The map below shows crimes from
 on the map, crimes appear more highly concentrated near the center of
 the city.
 
-[Crime Map](CrimeMap.png)
-
-### School Attendance Data
-
-SOME SORT OF CHART ON ATTENDANCE DATA
+![Crime Map](CrimeMap.png)
 
 Given we have panel data across several years for various schools, there
 may be unobserved variables impacting crimes or attendance that are
@@ -101,18 +97,13 @@ nearby crime rates were trending similarly at all schools before the the
 Safe Passage Program was implemented in 2015, but not perfectly
 parallel.
 
-[Crimes 50
-yards](https://github.com/avelazquez4/DPSS_Capstone/blob/main/ParallelTrends_Crime50.png?raw=true)
+![Crimes 50 yards](ParallelTrends_Crime50.png)
 
 If instead we expand the radius to evaluate trends of crimes within 200
 yards of schools, this appears to strengthen the parallel trends
-assumption between schools with and without the Safe Passage Program
+assumption between schools with and without the Safe Passage Program.
 
-the trend of crime rates prior to 2015 appears more parallel between
-schools with and without the Safe Passage Program compared to crimes
-within 50 yards.
-
-[Crimes 200 yards](ParallelTrends_Crime200.png)
+![Crimes 200 yards](ParallelTrends_Crime200.png)
 
 Now look at trends for school attendance rates before and after the Safe
 Passage Program went into effect. From the graph below, it does not look
@@ -124,7 +115,7 @@ cannot produce an unbiased estimation of the impact of the Safe Passage
 Program on school attendance rates using a fixed effects regression
 model.
 
-[School Attendance Trends](ParallelTrends_Attend.png)
+![School Attendance Trends](ParallelTrends_Attend.png)
 
 ## Analysis and Results
 
@@ -136,7 +127,7 @@ schools.
 Safe Passage Policy. It should also include both ‘school’ fixed effects
 and ‘year’ fixed effects.*
 
-[Crime Model](model_crime.html)
+![Crime Model](model_crime.html)
 
 The coefficient for the indicator variable for the Safe Passage Program
 has a p-value significant at the .001 level. This means that the Safe
