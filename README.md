@@ -101,8 +101,8 @@ nearby crime rates were trending similarly at all schools before the the
 Safe Passage Program was implemented in 2015, but not perfectly
 parallel.
 
-[Crimes 50 yards](ParallelTrends_Crime50.png) CHANGE THE AXIS TO BE MORE
-APPROPRIATE
+[Crimes 50
+yards](https://github.com/avelazquez4/DPSS_Capstone/blob/main/ParallelTrends_Crime50.png?raw=true)
 
 If instead we expand the radius to evaluate trends of crimes within 200
 yards of schools, this appears to strengthen the parallel trends
