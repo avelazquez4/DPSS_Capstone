@@ -43,9 +43,9 @@ library(stargazer)
 
 1. "Attnd": Attendance data for Chicago public schools
 
-2. "control": List of Chicago schools without the Safe Passage Program ang geographic information
+2. "control": List of Chicago schools without the Safe Passage Program and geographic information
 
-3. "treatment: List of Chicago schools with the Safe Passage Program, when it was implemented and geographic information
+3. "treatment": List of Chicago schools with the Safe Passage Program, when it was implemented and geographic information
 
 4. "crimes": Information on Chicago crimes within 500 yards of schools including crime type, location, and date of crime.
 
@@ -98,6 +98,7 @@ attnd_adj <- attnd %>%
 
 #Review the adjusted data
 str(attnd_adj)
+summary(attnd_adj)
 
 ```
 
@@ -172,7 +173,6 @@ leaflet() %>%
             labels = c("w/o Safe Passage Program (control)", "w/ Safe Passage Program (treated)"),
     title = "School Type") 
 
-
 ```
 
 
@@ -245,14 +245,14 @@ crime_join %>%
 
 
 #Map of all crimes from 2013-2018 within 50 yards of schools
-#Cluster version
-crime_join %>%
-  filter(distance <= 50) %>%
-  leaflet() %>%
-  addProviderTiles("CartoDB.DarkMatter") %>%
-  addMarkers(
-    clusterOptions = markerClusterOptions()
-  )
+# #Cluster version
+# crime_join %>%
+#   filter(distance <= 50) %>%
+#   leaflet() %>%
+#   addProviderTiles("CartoDB.DarkMatter") %>%
+#   addMarkers(
+#     clusterOptions = markerClusterOptions()
+#   )
 
 ```
 
@@ -335,6 +335,7 @@ df_sum_scl_crime %>%
     x = Year, 
     y = Avg_crimes, 
     color = treatment))+
+  ylim(0, 30)+
   geom_vline(xintercept = 2015, linetype = "dashed") +
   guides(col = guide_legend(reverse = TRUE)) +
   scale_color_discrete(
@@ -369,6 +370,7 @@ df_sum_scl_crime %>%
     x = Year, 
     y = Avg_crimes, 
     color = treatment))+
+  ylim(0, 100)+
   geom_vline(xintercept = 2015, linetype = "dashed") +
   guides(col = guide_legend(reverse = TRUE)) +
   scale_color_discrete(
@@ -399,6 +401,7 @@ df_sum_scl_crime %>%
     x = Year, 
     y = Avg_attend, 
     color = treatment))+
+  ylim(70, 100)+
   geom_vline(xintercept = 2015, linetype = "dashed") +
   guides(col = guide_legend(reverse = FALSE)) +
   scale_color_discrete(
@@ -409,8 +412,6 @@ df_sum_scl_crime %>%
     x = "Year", 
     y = "Average Attendance Rates (%)"
   )
-
-#try changing scale a bit, but still dont think this holds
 
 ```
 
@@ -456,7 +457,8 @@ coef_model_200_crime
 #Summary results of both crime models
 stargazer(model_50_crime, model_200_crime, report=("vc*p"), title = "Results", header = FALSE, type = "text", p = c(coef_model_50_crime[4], coef_model_200_crime[4]), omit.stat=c("adj.rsq", "f", "rsq"))
 
-
+#export for Github
+#stargazer(model_50_crime, model_200_crime, report=("vc*p"), title = "Results", header = FALSE, p = c(coef_model_50_crime[4], coef_model_200_crime[4]), omit.stat=c("adj.rsq", "f", "rsq"), type = "html", out = "model_crime.html")
 ```
 
 
