@@ -2,7 +2,7 @@
 Research Project
 ================
 Anne Velazquez
-2022-11-06
+(2022-11-06)
 
 ## Introduction
 
@@ -18,8 +18,6 @@ for more details on the program). The main purpose of the program is “to
 provide a positive, trusted adult presence for students as they travel
 to and from school.”
 
-## Data Cleaning and Exploration
-
 This project used the five datasets outlined below relating to the Safe
 Passage Program, attendance rates at Chicago Public Schools and crime
 statistics near these schools.
@@ -27,7 +25,7 @@ statistics near these schools.
 1.  “Attnd” (metrics_attendance_2021.xlsx): Attendance data for Chicago
     public schools. This dataset is publicly available and can be found
     [here](https://www.cps.edu/about/district-data/metrics/) under
-    “Attendance over time”.
+    “Attendance Over Time”.
 
 2.  “control” (“control.csv”): List of Chicago schools without the Safe
     Passage Program and geographic information
@@ -43,9 +41,9 @@ statistics near these schools.
     that happened within 500 yards of school and their distance from the
     relevant school(s)
 
-### School Data
+## Data Exploration
 
-## intro this visual!!!!!!!!!!!!!!!!!
+### School Data
 
 Let’s look at where the schools with the Safe Passage Program are
 located compared to other schools in the Chicago area.
@@ -69,6 +67,8 @@ on the map, crimes appear more highly concentrated near the center of
 the city.
 
 ![Crime Map](CrimeMap.png)
+
+### Evaluate Trends
 
 Given we have panel data across several years for various schools, there
 may be unobserved variables impacting crimes or attendance that are
@@ -146,21 +146,3 @@ within 200 yards of schools.
 By including fixed effects for schools and each year in the models, this
 eliminates the risk of bias due to omitted factors that vary across
 schools and that vary over time.
-
-#### Part B
-
-*Run the same regression as in (a), but now run of school attendance on
-the presence of the Safe Passage Policy. *
-
-INSERT STARGAZER HERE
-
-The coefficient for the indicator variable has a p-value significant at
-the .001 level. This means that the Safe Passage Program has a
-statistically significant relationship with school attendance rates.
-However, there is likely bias in this model as the parallel trends
-assumption was not satisfied for school attendance rates.
-
-What further analysis should be done?
-
--   Did crime decrease overall or did the Safe Passage Program just
-    shift crime to different areas/schools?
