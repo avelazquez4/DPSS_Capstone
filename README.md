@@ -2,7 +2,7 @@
 Research Project
 ================
 Anne Velazquez
-2022-11-02
+2022-11-06
 
 ## Introduction
 
@@ -121,20 +121,31 @@ model.
 
 Now, we can use a fixed effects regression model to determine if the
 Safe Passage Program had a significant impact on crimes nearby to
-schools.
+schools. The table below outlines the results of two fixed effects
+regression models that evaluate the impact of the Safe Passage Program
+on total crimes within 50 and 200 yards of schools. Both models include
+fixed effects for ‘school’ and ‘year’.
 
-*Run a fixed effects regression of total crime in the presence of the
-Safe Passage Policy. It should also include both ‘school’ fixed effects
-and ‘year’ fixed effects.*
+![Crime Model](stargazer_crimes.PNG)
 
-![Crime Model](model_crime.html)
+Looking at the model for crimes within 50 yards of schools, the
+coefficient for the indicator variable for the Safe Passage Program is
+-8.24, which means that schools with the Safe Passage Program in effect
+had about 8 fewer nearby crimes on average each year compared to schools
+that did not implement the Safe Passage Program. The coefficient has a
+p-value significant at the .001 level. This means that the Safe Passage
+Program has a statistically significant relationship with the rate of
+crime within 50 yards of schools.
 
-The coefficient for the indicator variable for the Safe Passage Program
-has a p-value significant at the .001 level. This means that the Safe
-Passage Program has a statistically significant relationship with the
-rate of crimes within 50 yards of schools. By including fixed effects
-for schools and each year in the model, we eliminate the risk of bias
-due to omitted factors that vary across schools and that vary over time.
+Looking at the model for crimes within 200 yards of schools, the
+coefficient of the indicator variable is -18.69 and has a p-value
+significant at .001 level as well. Thus, the Safe Passage Program also
+has a statistically significant relationship with the number of crimes
+within 200 yards of schools.
+
+By including fixed effects for schools and each year in the models, this
+eliminates the risk of bias due to omitted factors that vary across
+schools and that vary over time.
 
 #### Part B
 
@@ -143,10 +154,11 @@ the presence of the Safe Passage Policy. *
 
 INSERT STARGAZER HERE
 
-*The coefficient for the indicator variable has a p-value significant at
+The coefficient for the indicator variable has a p-value significant at
 the .001 level. This means that the Safe Passage Program has a
 statistically significant relationship with school attendance rates.
-However, there is likely bias in this model as the*
+However, there is likely bias in this model as the parallel trends
+assumption was not satisfied for school attendance rates.
 
 What further analysis should be done?
 
